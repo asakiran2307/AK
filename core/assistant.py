@@ -7,25 +7,42 @@ from memory.database import Memory
 
 class Assistant:
     def __init__(self):
-        self.memory=Memory()
-        self.router=Router()
-        self.executor=ToolExecutor(self.router.registry,PermissionManager())
-        self.ai=OllamaClient()
+        self.memory = Memory()
+        self.router = Router()
+        self.executor = ToolExecutor(self.router.registry, PermissionManager())
+        self.ai = OllamaClient()
 
-    def respond(self,text):
-        self.memory.add("user",text)
-        direct=self.router.direct(text)
+    def respond(self, text):
+        text = text.strip()
+        if not text:
+            return "Say something and I will help."
+        self.memory.add("user", text)
+
+        direct = self.router.direct(text)
         if direct:
-            name,args=direct; tool=self.router.registry.get(name)
+            name, args = direct
+            tool = self.router.registry.get(name)
             if tool.requires_confirmation and not self.executor.permissions.confirm_console(name):
                 return "Action cancelled."
-            result=self.executor.execute(name,confirmed=True,**args)
-            self.memory.add("assistant",result); return result
-        messages=[{"role":"system","content":SYSTEM_PROMPT}]
-        for role,content in self.memory.recent(8): messages.append({"role":role,"content":content})
-        try:
-            answer=self.ai.chat(messages)
-        except Exception as exc:
-            answer=f"Qwen3 is unavailable. Start Ollama and verify qwen3:4b.\n\n{exc}"
-        self.memory.add("assistant",answer)
+            result = self.executor.execute(name, confirmed=True, **args)
+            answer = str(result)
+            self.memory.add("assistant", answer)
+            return answer
+
+        ok, detail = self.ai.health()
+        if ok:
+            messages = [{"role": "system", "content": SYSTEM_PROMPT}]
+            for role, content in self.memory.recent(8):
+                messages.append({"role": role, "content": content})
+            try:
+                answer = self.ai.chat(messages)
+            except Exception as exc:
+                answer = f"Qwen3 could not answer: {exc}"
+        else:
+            answer = (
+                "I understood this as an AI request, but Qwen3/Ollama is not available.\n\n"
+                + self.router.nlp.help_text()
+                + "\n\nOllama status: " + str(detail)
+            )
+        self.memory.add("assistant", answer)
         return answer
