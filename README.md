@@ -1,49 +1,45 @@
 # AK — Local JARVIS AI Assistant
 
-AK is a local-first Windows desktop assistant built around **Qwen3 4B + Ollama**.
+AK is a local-first Windows desktop assistant built around Qwen3 4B + Ollama for a Windows machine with about 8 GB RAM.
 
-## Core architecture
-
-Voice/Text → Intent → Qwen3 → Planner → Permission Layer → Tools → Result → Qwen3 → UI/TTS
-
-## Included foundation
-
-- Qwen3 4B through local Ollama
-- Natural-language command routing
+## Current foundation
+- Local Qwen3 4B chat through Ollama
+- Fast direct command routing
+- Registered tool architecture
+- Permission checks
+- Rotating audit log
 - Windows application launching
-- System information
-- Safe PowerShell execution with confirmation
-- File operations
-- Web opening/search
+- System information and file listing
+- Browser search and URL opening
+- Clipboard read/write
+- Desktop screenshots
+- Local network information
 - SQLite conversation memory
-- Optional voice input/output hooks
-- Authorized security-lab command hooks
-- Dark desktop dashboard
-- Model/runtime health checks
-- One-click Windows setup/run scripts
+- Optional speech adapters
+- Authorized security-lab scope object
+- Tkinter desktop dashboard
+- Doctor, setup and run scripts
+
+## Architecture
+User → Router → Tool Registry → Permission Layer → Tool Executor
+
+Reasoning-heavy requests → Qwen3 4B → response
+
+The model is not given unrestricted shell access.
 
 ## Requirements
+Windows 10/11, Python 3.10+ (3.13 recommended), Ollama, and Qwen3 4B.
 
-- Windows 10/11
-- Python 3.13
-- Ollama
-- Qwen3 4B: `ollama pull qwen3:4b`
+Install the model with: ollama pull qwen3:4b
 
-## Start
+## Run
+1. Run setup.bat
+2. Run run.bat
 
-Run:
-
-```bat
-setup.bat
-run.bat
-```
-
-If Ollama reports that `llama-server.exe` is missing, reinstall Ollama from its official installer before running AK.
+Direct commands include: open notepad, open calculator, system info, take screenshot, show my ip, list files, search web Python 3.13, read clipboard.
 
 ## Security boundary
+Security features are for authorized CTFs, local labs, owned systems, and defensive analysis. AK does not expose unrestricted arbitrary exploitation or destructive actions.
 
-Security tooling is intended for systems, CTFs, labs, and infrastructure you are authorized to test. Destructive or high-impact actions require confirmation and are not exposed as unrestricted LLM shell execution.
-
-## Project name
-
-**AK**
+## Repository
+https://github.com/asakiran2307/AK
