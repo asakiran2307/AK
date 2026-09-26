@@ -1,5 +1,5 @@
-from brain.planner import Planner
-from core.audit import audit
+from brain.ollama_client import OllamaClient
+from brain.prompts import SYSTEM_PROMPT
 from core.executor import ToolExecutor
 from core.permissions import PermissionManager
 from core.router import Router
@@ -7,30 +7,25 @@ from memory.database import Memory
 
 class Assistant:
     def __init__(self):
-        self.memory = Memory()
-        self.router = Router()
-        self.permissions = PermissionManager()
-        self.executor = ToolExecutor(self.router.registry, self.permissions)
-        self.planner = Planner()
+        self.memory=Memory()
+        self.router=Router()
+        self.executor=ToolExecutor(self.router.registry,PermissionManager())
+        self.ai=OllamaClient()
 
-    def respond(self, text: str) -> str:
-        self.memory.add("user", text)
-        direct = self.router.direct(text)
+    def respond(self,text):
+        self.memory.add("user",text)
+        direct=self.router.direct(text)
         if direct:
-            name, args = direct
-            tool = self.router.registry.get(name)
-            confirmed = False
-            if tool and tool.requires_confirmation:
-                confirmed = self.permissions.confirm_console(name)
-                if not confirmed:
-                    return "Action cancelled."
-            result = self.executor.execute(name, confirmed=confirmed, **args)
-            self.memory.add("assistant", result)
-            return result
+            name,args=direct; tool=self.router.registry.get(name)
+            if tool.requires_confirmation and not self.executor.permissions.confirm_console(name):
+                return "Action cancelled."
+            result=self.executor.execute(name,confirmed=True,**args)
+            self.memory.add("assistant",result); return result
+        messages=[{"role":"system","content":SYSTEM_PROMPT}]
+        for role,content in self.memory.recent(8): messages.append({"role":role,"content":content})
         try:
-            answer = self.planner.answer(text, self.memory.recent(10))
+            answer=self.ai.chat(messages)
         except Exception as exc:
-            audit("ollama failure=%s", exc)
-            answer = f"Qwen3 is unavailable right now. Start Ollama and verify qwen3:4b.\n\n{exc}"
-        self.memory.add("assistant", answer)
+            answer=f"Qwen3 is unavailable. Start Ollama and verify qwen3:4b.\n\n{exc}"
+        self.memory.add("assistant",answer)
         return answer
