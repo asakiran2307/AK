@@ -1,38 +1,37 @@
-import importlib.util
-import os
+import importlib
 import shutil
-import subprocess
 import sys
-import requests
-from config import MODEL, OLLAMA_URL
+from pathlib import Path
 
-def check(label, ok, detail=""):
-    print(f"[{'OK' if ok else 'FAIL'}] {label}" + (f" — {detail}" if detail else ""))
+ROOT = Path(__file__).resolve().parent
+
+def check(label, fn):
+    try:
+        value = fn()
+        print(f"[OK]   {label}: {value}")
+        return True
+    except Exception as e:
+        print(f"[FAIL] {label}: {e}")
+        return False
 
 def main():
-    print("\nAK SYSTEM DOCTOR\n")
-    check("Python", sys.version_info >= (3, 10), sys.version.split()[0])
-    ollama = shutil.which("ollama") or os.path.expandvars(r"%LOCALAPPDATA%\Programs\Ollama\ollama.exe")
-    check("Ollama executable", os.path.exists(ollama), ollama)
-    api_ok = False
-    models = ""
-    try:
-        r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=3)
-        api_ok = r.ok
-        models = r.text
-    except Exception as exc:
-        models = str(exc)
-    check("Ollama API", api_ok, "http://127.0.0.1:11434")
-    check("Qwen3 4B", MODEL in models, MODEL)
-    for pkg in ("requests", "psutil"):
-        check(f"Python package: {pkg}", importlib.util.find_spec(pkg) is not None)
-    try:
-        import psutil
-        check("RAM", psutil.virtual_memory().total >= 6 * 1024**3, f"{psutil.virtual_memory().total/1024**3:.1f} GB")
-    except Exception:
-        check("RAM", False)
-    print("\nIf Ollama is installed but the API/model fails, run: ollama serve")
-    print("Then verify with: ollama list\n")
+    print("\nAK DOCTOR\n=========")
+    ok = True
+    for mod in ["core.router", "core.assistant", "tools.system", "tools.files", "nlp.engine"]:
+        ok &= check(f"import {mod}", lambda m=mod: importlib.import_module(m).__name__)
+    ok &= check("system tool", lambda: __import__("tools.system", fromlist=["system_info"]).system_info().splitlines()[0])
+    ok &= check("NLP engine", lambda: __import__("nlp.engine", fromlist=["IntentEngine"]).IntentEngine().classify("show system info").name)
+    ollama = shutil.which("ollama")
+    print(f"[{'OK' if ollama else 'WARN'}]  Ollama: {ollama or 'not found on PATH'}")
+    print(f"[INFO] Python: {sys.executable}")
+    print(f"[INFO] Project: {ROOT}")
+    if not ok:
+        print("\nAK core has errors. Fix the [FAIL] items before starting.")
+        raise SystemExit(1)
+    print("\nAK core is healthy.")
+    print("Start with: python main.py")
+    if ollama:
+        print("Then check Qwen with: ollama list")
 
 if __name__ == "__main__":
     main()
